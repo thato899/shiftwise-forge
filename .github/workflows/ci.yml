@@ -1,0 +1,37 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Required documentation
+        shell: bash
+        run: |
+          for file in README.md AGENTS.md planning.md STATUS.md docs/PRODUCT.md docs/ARCHITECTURE.md docs/SUBMISSION.md docs/INSTALL.md; do
+            test -s "$file" || { echo "Missing or empty: $file"; exit 1; }
+          done
+          if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- ':!*.lock'; then
+            echo "Conflict markers found"; exit 1
+          fi
+  app:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('package-lock.json') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --if-present
+      - run: npm run typecheck --if-present
+      - run: npm test --if-present
+      - run: npm run build --if-present
+      - run: npx forge lint
