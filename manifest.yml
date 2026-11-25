@@ -19,4 +19,3 @@ app:
   runtime:
     name: nodejs22.x
     memoryMB: 256
-  id: ari:cloud:ecosystem::app/REPLACE_WITH_FORGE_APP_ID
