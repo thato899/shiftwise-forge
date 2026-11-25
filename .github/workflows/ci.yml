@@ -22,16 +22,27 @@ jobs:
           fi
   app:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('package-lock.json') != '' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Detect app
+        id: app
+        shell: bash
+        run: |
+          if test -f package-lock.json; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-node@v4
+        if: steps.app.outputs.exists == 'true'
         with:
           node-version: '20'
           cache: npm
       - run: npm ci
+        if: steps.app.outputs.exists == 'true'
       - run: npm run lint --if-present
+        if: steps.app.outputs.exists == 'true'
       - run: npm run typecheck --if-present
+        if: steps.app.outputs.exists == 'true'
       - run: npm test --if-present
+        if: steps.app.outputs.exists == 'true'
       - run: npm run build --if-present
+        if: steps.app.outputs.exists == 'true'
       - run: npx forge lint
+        if: steps.app.outputs.exists == 'true'
