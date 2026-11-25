@@ -1,0 +1,11 @@
+# Architecture and data contracts
+
+Forge app with Jira global page (manager/HR board) and employee-facing view, implemented using Forge UI Kit or Custom UI after a first installable spike. Forge resolver owns all mutations and authorization; Jira issue integration records operational coverage exceptions and links decisions. Forge hosted storage persists tenant-scoped records. Exact module/API choice is validated in issue #1 against current official Forge docs before committing a manifest.
+
+Entities: Site, PostRequirement, Shift, EmployeeProfile, Credential, Assignment, LeaveRequest, CoverageEvaluation, OvertimeOffer, OvertimeResponse, DecisionEvent. Each entity carries tenant/site identifiers, revision and timestamps. EmployeeProfile contains only necessary fields; grade/compensation policy remains HR-only. Store references to Atlassian account IDs, avoid copying names where possible.
+
+Services (object-oriented boundaries): PolicyRepository; EligibilityService; CoverageSolver; LeaveDecisionService; OvertimeService; AuditService; JiraGateway. CoverageSolver treats employees as capacity-one and posts as required slots, calculates a feasible matching, and emits reasons for unmet slots. Evaluate all overlapping shifts and recheck at write time. LeaveDecisionService records a decision only when coverage and authorization pass at the current revision. OvertimeService creates offers after a gap, checks policy on response, and requires manager confirmation before assignment. JiraGateway uses least-privilege scopes and idempotent issue creation for unresolved gaps.
+
+Security: server-side actor role and site checks on every resolver; tenant partition keys; input validation; audit of policy and approval changes; no salary values in Jira issues, notifications or logs; no secrets in source. Concurrency: compare revisions or transactional write guard; stale previews fail and re-evaluate. Policy failures and unknown qualifications are ineligible. Synthetic fixtures only for the demo.
+
+CI: install from lockfile, lint, typecheck, unit tests for matching/authorization/concurrency, build, forge lint when CLI and manifest exist. GitHub Actions never deploys to production or exposes Forge credentials to untrusted PRs. Deployment is a manual documented step after CI.
