@@ -14,5 +14,10 @@ JiraGateway will use least privilege and idempotent issue creation for unresolve
 ## Security and consistency
 Use trusted Forge invocation context for actor role and site checks on every resolver. Scope storage keys by installation/tenant and site. Validate inputs; audit policy and approval changes; never place salary values in Jira issues, notifications or logs. Stale decisions fail and trigger reevaluation. Unknown policy and qualifications are ineligible. Use synthetic fixtures only.
 
+### Authorization contract (ticket #2)
+Resolver services derive the actor from Forge's trusted `context.accountId` and `context.cloudId`. They load an `ActorGrant` by that identity from server-side storage, then authorize the requested permission against the record's server-loaded tenant and the grant's explicit site IDs. A payload-supplied role, account ID or tenant ID is never authority. Employee self-service additionally matches the employee ID linked in the grant. Site grants have no wildcard form.
+
+`src/domain/authorization.ts` implements and tests this policy contract. It is not yet connected to a persistent grant repository or the resolver, so it is not production enforcement. Until that service is wired, sensitive workflows must remain unavailable; the current synthetic dashboard contains no employee records.
+
 ## CI
 Install exact dependencies from both root and UI package lockfiles; run lint, typecheck, unit tests for matching/authorization/concurrency, UI build and Forge lint. CI never deploys to production or exposes Forge credentials to untrusted PRs. Deployment remains a documented manual action.
