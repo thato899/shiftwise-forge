@@ -26,15 +26,40 @@ describe('evaluateCoverage', () => {
     expect(result.excludedCandidates.find(item => item.workerId === 'a')?.reasons).toContain('excluded by proposed absence');
   });
 
-  it('does not assign one multi-skilled worker to two simultaneous posts', () => {
-    const only = workers.slice(0, 1);
+  it('reassigns a flexible worker so a specialist can fill their only eligible post', () => {
+    const flexible = { ...workers[0], id: 'flexible', skills: ['engine-maintenance', 'inspection'] };
+    const specialist = { ...workers[1], id: 'specialist', skills: ['engine-maintenance'] };
     const posts = [
       { ...post, id: 'engine', minimum: 1 },
-      { ...post, id: 'inspection', name: 'Inspection', minimum: 1, requiredSkills: ['engine-maintenance'] },
+      { ...post, id: 'inspection', name: 'Inspection', minimum: 1, requiredSkills: ['inspection'] },
+    ];
+    const result = evaluateCoverage({ workers: [flexible, specialist], posts });
+    expect(result.feasible).toBe(true);
+    expect(result.posts.find(item => item.postId === 'engine')?.assignedWorkerIds).toEqual(['specialist']);
+    expect(result.posts.find(item => item.postId === 'inspection')?.assignedWorkerIds).toEqual(['flexible']);
+  });
+
+  it('does not assign one multi-skilled worker to two overlapping posts', () => {
+    const only = [{ ...workers[0], skills: ['engine-maintenance', 'inspection'] }];
+    const posts = [
+      { ...post, id: 'engine', minimum: 1 },
+      { ...post, id: 'inspection', name: 'Inspection', minimum: 1, requiredSkills: ['inspection'] },
     ];
     const result = evaluateCoverage({ workers: only, posts });
     expect(result.feasible).toBe(false);
     expect(result.posts.reduce((sum, item) => sum + item.assignedWorkerIds.length, 0)).toBe(1);
+  });
+
+  it('allows one worker to cover qualified posts in non-overlapping windows', () => {
+    const only = [{ ...workers[0], skills: ['engine-maintenance', 'inspection'] }];
+    const later = { start: '2026-11-25T14:00:00Z', end: '2026-11-25T22:00:00Z' };
+    const posts = [
+      { ...post, id: 'engine', minimum: 1 },
+      { ...post, id: 'inspection', name: 'Inspection', minimum: 1, requiredSkills: ['inspection'], window: later },
+    ];
+    const result = evaluateCoverage({ workers: only, posts });
+    expect(result.feasible).toBe(true);
+    expect(result.posts.every(item => item.assignedWorkerIds.length === 1)).toBe(true);
   });
 
   it('excludes workers with invalid credentials or conflicting assignments', () => {
@@ -45,7 +70,8 @@ describe('evaluateCoverage', () => {
     expect(result.excludedCandidates[0].reasons).toContain('already assigned in this time window');
   });
 
-  it('rejects invalid windows', () => {
+  it('rejects duplicate IDs and invalid windows', () => {
     expect(() => evaluateCoverage({ workers, posts: [{ ...post, window: { start: 'bad', end: 'bad' } }] })).toThrow();
+    expect(() => evaluateCoverage({ workers: [workers[0], workers[0]], posts: [post] })).toThrow('unique');
   });
 });
