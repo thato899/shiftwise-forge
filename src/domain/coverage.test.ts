@@ -70,6 +70,17 @@ describe('evaluateCoverage', () => {
     expect(result.excludedCandidates[0].reasons).toContain('already assigned in this time window');
   });
 
+  it('does not confuse post IDs where one is a prefix of another', () => {
+    const posts = [
+      { ...post, id: 'engine', minimum: 1 },
+      { ...post, id: 'engine:inspection', name: 'Inspection', minimum: 1 },
+    ];
+    const result = evaluateCoverage({ workers, posts });
+    expect(result.feasible).toBe(true);
+    expect(result.posts.find(item => item.postId === 'engine')?.assignedWorkerIds).toHaveLength(1);
+    expect(result.posts.find(item => item.postId === 'engine:inspection')?.assignedWorkerIds).toHaveLength(1);
+  });
+
   it('rejects duplicate IDs and invalid windows', () => {
     expect(() => evaluateCoverage({ workers, posts: [{ ...post, window: { start: 'bad', end: 'bad' } }] })).toThrow();
     expect(() => evaluateCoverage({ workers: [workers[0], workers[0]], posts: [post] })).toThrow('unique');
