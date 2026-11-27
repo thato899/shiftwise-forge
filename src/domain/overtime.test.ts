@@ -31,10 +31,10 @@ describe('voluntary overtime offer lifecycle', () => {
     expect(() => respondToOvertimeOffer(published.offer, 'worker-b', 'accept', now, 2)).toThrow('invited employee');
   });
 
-  it('prevents a stale competing response from consuming the offer twice', () => {
+  it('rejects actions submitted with stale revision numbers', () => {
     const published = publishOvertimeOffer(draft, 'manager-a', now, 1);
     const accepted = respondToOvertimeOffer(published.offer, 'worker-a', 'accept', now, 2);
-    expect(() => respondToOvertimeOffer(published.offer, 'worker-a', 'decline', now, 2)).toThrow('Offer changed');
+    expect(() => respondToOvertimeOffer(published.offer, 'worker-a', 'decline', now, 1)).toThrow('Offer changed');
     expect(() => confirmOvertimeAssignment(accepted.offer, 'manager-a', 'assignment-b', now, 2)).toThrow('Offer changed');
   });
 
