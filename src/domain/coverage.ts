@@ -7,7 +7,7 @@ export interface Worker {
   grade: string;
   available: boolean;
   credentialValid: boolean;
-  /** ISO timestamps for assigned work and required rest windows. */
+  /** Existing assigned work and required rest windows. */
   busyWindows: TimeWindow[];
 }
 export interface TimeWindow {
@@ -43,6 +43,8 @@ export interface CoverageResult {
   excludedCandidates: Array<{ workerId: string; postId: string; reasons: string[] }>;
 }
 
+const MAX_SEARCH_NODES = 100_000;
+
 function toMillis(value: string): number {
   const result = Date.parse(value);
   if (!Number.isFinite(result)) throw new Error(`Invalid timestamp: ${value}`);
@@ -66,69 +68,89 @@ function eligible(worker: Worker, post: PostRequirement): string[] {
 }
 
 /**
- * Deterministic capacity-one bipartite matching. Each required slot is distinct;
- * each worker can cover one overlapping slot, including across different posts.
+ * Finds the largest feasible set of assignments within a bounded search budget.
+ * A worker can cover multiple non-overlapping slots, but never two overlapping
+ * posts. Inputs exceeding the budget fail explicitly for manager review.
  */
 export function evaluateCoverage(input: CoverageInput): CoverageResult {
+  const workerIds = new Set<string>();
+  for (const worker of input.workers) {
+    if (!worker.id.trim() || workerIds.has(worker.id)) throw new Error('Worker IDs must be non-empty and unique.');
+    workerIds.add(worker.id);
+  }
+  const postIds = new Set<string>();
   for (const post of input.posts) {
+    if (!post.id.trim() || postIds.has(post.id)) throw new Error('Post IDs must be non-empty and unique.');
+    postIds.add(post.id);
     if (!Number.isInteger(post.minimum) || post.minimum < 0) throw new Error(`Invalid minimum for ${post.id}`);
-    toMillis(post.window.start);
-    toMillis(post.window.end);
-    if (toMillis(post.window.start) >= toMillis(post.window.end)) throw new Error(`Invalid window for ${post.id}`);
+    const start = toMillis(post.window.start);
+    const end = toMillis(post.window.end);
+    if (start >= end) throw new Error(`Invalid window for ${post.id}`);
   }
 
-  const posts = [...input.posts].sort((a, b) => {
-    const eligibilityCount = (post: PostRequirement) =>
-      input.workers.filter(worker => eligible(worker, post).length === 0 && !input.excludedWorkerIds?.includes(worker.id)).length;
-    return eligibilityCount(a) - eligibilityCount(b) || a.id.localeCompare(b.id);
-  });
-  const slots = posts.flatMap(post => Array.from({ length: post.minimum }, (_, index) => ({ post, index })));
-  const assigned = new Map<string, { post: PostRequirement; slotIndex: number }>();
   const excludedCandidates: CoverageResult['excludedCandidates'] = [];
-
-  const candidatesFor = (post: PostRequirement): Worker[] => {
-    const candidates = input.workers.filter(worker => {
+  const candidatesFor = new Map<string, Worker[]>();
+  for (const post of input.posts) {
+    const eligibleWorkers: Worker[] = [];
+    for (const worker of input.workers) {
       const reasons = eligible(worker, post);
       if (input.excludedWorkerIds?.includes(worker.id)) reasons.push('excluded by proposed absence');
-      if (reasons.length) {
-        excludedCandidates.push({ workerId: worker.id, postId: post.id, reasons });
-        return false;
-      }
-      return true;
-    });
-    return candidates.sort((a, b) => a.id.localeCompare(b.id));
-  };
-  const candidateMap = new Map(posts.map(post => [post.id, candidatesFor(post)]));
-
-  const canMoveWorker = (worker: Worker, visitedWorkers: Set<string>, visitedSlots: Set<string>): boolean => {
-    if (visitedWorkers.has(worker.id)) return false;
-    visitedWorkers.add(worker.id);
-    for (const slot of slots) {
-      const key = `${slot.post.id}:${slot.index}`;
-      if (visitedSlots.has(key) || !overlaps(workerWindow(slot.post), slot.post.window)) continue;
-      if (!candidateMap.get(slot.post.id)?.some(candidate => candidate.id === worker.id)) continue;
-      visitedSlots.add(key);
-      const current = [...assigned.entries()].find(([, value]) => value.post.id === slot.post.id && value.slotIndex === slot.index);
-      if (!current || canMoveWorker(input.workers.find(item => item.id === current[0])!, visitedWorkers, visitedSlots)) {
-        assigned.set(worker.id, slot);
-        if (current) assigned.delete(current[0]);
-        return true;
-      }
+      if (reasons.length) excludedCandidates.push({ workerId: worker.id, postId: post.id, reasons });
+      else eligibleWorkers.push(worker);
     }
-    return false;
-  };
-
-  for (const slot of slots) {
-    const placed = candidateMap.get(slot.post.id)!.some(worker =>
-      canMoveWorker(worker, new Set(), new Set())
-    );
-    if (!placed) continue;
+    candidatesFor.set(post.id, eligibleWorkers.sort((a, b) => a.id.localeCompare(b.id)));
   }
 
+  const slots = input.posts.flatMap(post =>
+    Array.from({ length: post.minimum }, (_, index) => ({ key: `${post.id}:${index}`, post }))
+  ).sort((a, b) =>
+    candidatesFor.get(a.post.id)!.length - candidatesFor.get(b.post.id)!.length ||
+    Number(b.post.critical) - Number(a.post.critical) ||
+    a.post.id.localeCompare(b.post.id) ||
+    a.key.localeCompare(b.key)
+  );
+
+  const assigned = new Map<string, Worker>();
+  let best = new Map<string, Worker>();
+  let searchNodes = 0;
+  let bestCount = 0;
+
+  const search = (slotIndex: number): void => {
+    searchNodes += 1;
+    if (searchNodes > MAX_SEARCH_NODES) {
+      throw new Error('Coverage search limit reached; manager review is required.');
+    }
+    if (assigned.size > bestCount) {
+      best = new Map(assigned);
+      bestCount = assigned.size;
+      if (bestCount === slots.length) return;
+    }
+    if (slotIndex >= slots.length || assigned.size + slots.length - slotIndex <= bestCount) return;
+
+    const slot = slots[slotIndex];
+    const candidates = candidatesFor.get(slot.post.id)!;
+    for (const worker of candidates) {
+      const conflicts = [...assigned.entries()].filter(([, otherSlotWorker]) => otherSlotWorker.id === worker.id);
+      const conflictsWithWindow = conflicts.some(([assignedKey]) => {
+        const existingSlot = slots.find(item => item.key === assignedKey)!;
+        return overlaps(existingSlot.post.window, slot.post.window);
+      });
+      if (conflictsWithWindow) continue;
+
+      assigned.set(slot.key, worker);
+      search(slotIndex + 1);
+      assigned.delete(slot.key);
+      if (bestCount === slots.length) return;
+    }
+    search(slotIndex + 1);
+  };
+
+  search(0);
+
   const results = input.posts.map(post => {
-    const assignedWorkerIds = [...assigned.entries()]
-      .filter(([, slot]) => slot.post.id === post.id)
-      .map(([workerId]) => workerId)
+    const assignedWorkerIds = [...best.entries()]
+      .filter(([key]) => key.startsWith(`${post.id}:`))
+      .map(([, worker]) => worker.id)
       .sort();
     return {
       postId: post.id,
@@ -140,8 +162,4 @@ export function evaluateCoverage(input: CoverageInput): CoverageResult {
     };
   });
   return { feasible: results.every(post => post.deficit === 0), posts: results, excludedCandidates };
-}
-
-function workerWindow(post: PostRequirement): TimeWindow {
-  return post.window;
 }
