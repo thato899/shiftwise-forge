@@ -12,6 +12,8 @@ Added reproducible root and UI lockfiles, ESLint 9 flat configuration, Jest Type
 
 Local checks on Node 24/npm 11 are listed in the run report; lockfile clean installs were also verified with npm 10. The full check sequence passes through production UI build. Forge lint reaches the actual manifest validation and fails because manifest.yml has no registered app ID. Registration requires a real Atlassian developer/Jira site and must not be fabricated.
 
+GitHub Actions PR run #43 confirmed the docs job, both clean installs, lint, typecheck, all 20 tests, and production UI build pass on CI. The app job then fails only at Forge lint with: “Invalid app details in the manifest.yml file. Register your app by running forge register.”
+
 ## CI changes
 CI requires both package lockfiles and runs clean installs, lint, typecheck, tests, production UI build and Forge lint. Missing lockfiles fail explicitly. Forge CLI runs with analytics disabled and non-interactive mode; the real app ID registration remains the lint/install blocker.
 
