@@ -14,7 +14,7 @@ jobs:
       - name: Required documentation
         shell: bash
         run: |
-          for file in README.md AGENTS.md planning.md STATUS.md docs/PRODUCT.md docs/ARCHITECTURE.md docs/SUBMISSION.md docs/INSTALL.md; do
+          for file in README.md AGENTS.md planning.md STATUS.md docs/PRODUCT.md docs/ARCHITECTURE.md docs/SUBMISSION.md docs/INSTALL.md docs/SECURITY.md; do
             test -s "$file" || { echo "Missing or empty: $file"; exit 1; }
           done
           if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- ':!*.lock'; then
@@ -24,25 +24,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Detect app
-        id: app
+      - name: Require reproducible dependency lockfiles
         shell: bash
         run: |
-          if test -f package-lock.json; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+          test -s package-lock.json || { echo "Root package-lock.json is required; app checks must not be skipped."; exit 1; }
+          test -s static/hello-world/package-lock.json || { echo "UI package-lock.json is required; app checks must not be skipped."; exit 1; }
       - uses: actions/setup-node@v4
-        if: steps.app.outputs.exists == 'true'
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            static/hello-world/package-lock.json
       - run: npm ci
-        if: steps.app.outputs.exists == 'true'
-      - run: npm run lint --if-present
-        if: steps.app.outputs.exists == 'true'
-      - run: npm run typecheck --if-present
-        if: steps.app.outputs.exists == 'true'
-      - run: npm test --if-present
-        if: steps.app.outputs.exists == 'true'
-      - run: npm run build --if-present
-        if: steps.app.outputs.exists == 'true'
+      - run: npm --prefix static/hello-world ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
       - run: npx forge lint
-        if: steps.app.outputs.exists == 'true'
