@@ -149,7 +149,7 @@ export function evaluateCoverage(input: CoverageInput): CoverageResult {
 
   const results = input.posts.map(post => {
     const assignedWorkerIds = [...best.entries()]
-      .filter(([key]) => key.startsWith(`${post.id}:`))
+      .filter(([key]) => key.slice(0, key.lastIndexOf(':')) === post.id)
       .map(([, worker]) => worker.id)
       .sort();
     return {
