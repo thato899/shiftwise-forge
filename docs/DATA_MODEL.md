@@ -11,5 +11,8 @@ The initial domain types live in src/domain/models.ts. These are contracts for t
 - Revisions support stale-preview detection. Before writing a decision, compare the submitted revision with current server-side state.
 - All authorization is performed server-side from trusted Forge context; IDs supplied by UI are selectors, never proof of authorization.
 
+## Actor grant contract
+`ActorGrant` is the server-managed link between one Forge account and its Shiftwise role. It carries tenantId, accountId, role, explicit siteIds, optional employeeId for self-service, active state and revision. The grant must be fetched using trusted Forge context identity and scoped to the tenant before authorization. Never accept a grant object from UI payloads. HR grants are still site-scoped; employees are limited to their linked employeeId; auditor permission is limited to redacted history.
+
 ## Current limits
-There is no HR configuration screen or persistent data layer yet. These definitions and validation helpers do not constitute production authorization or legal compliance. Implementation proceeds through issues #1 and #2.
+There is no HR configuration screen, persistent data layer or resolver authorization wiring yet. The authorization helper is a pure policy contract with synthetic tests, not deployed access control. These definitions and validation helpers do not constitute production authorization or legal compliance. Implementation proceeds through issues #1 and #2.

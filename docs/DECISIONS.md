@@ -15,3 +15,10 @@ Date: 25 November 2026. Skills and current credentials establish competency; HR-
 - Keep ESLint 9 on its flat configuration and configure Jest with ts-jest so lint, typecheck and tests execute against the TypeScript source.
 - Run Forge CLI lint non-interactively with analytics disabled in CI. App registration is an external prerequisite; no placeholder app ID is permitted.
 - The overtime lifecycle helpers enforce revision equality against the supplied record, but concurrent assignment prevention requires atomic storage and is not claimed by these pure functions.
+
+## 2026-11-27 — Trusted context and explicit site grants
+
+- Derive account and tenant identity only from the Forge resolver context (`accountId`, `cloudId`). Treat payload IDs as selectors, never as proof of identity or authorization.
+- Model roles as explicit server-side grants with tenant, account, allowed site IDs, optional employee self-link, active state and revision. Do not use a wildcard site grant.
+- Keep employee self-service, manager decisions, HR policy/profile changes and redacted auditor history as separate permissions.
+- The pure authorization policy is a tested contract only. Do not expose protected flows until a server-side grant repository and resolver enforcement are connected.
