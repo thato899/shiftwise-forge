@@ -14,7 +14,7 @@ Local checks on Node 24/npm 11 are listed in the run report; lockfile clean inst
 
 GitHub Actions PR run #43 confirmed the docs job, both clean installs, lint, typecheck, all 20 tests, and production UI build pass on CI. The app job then fails only at Forge lint with: “Invalid app details in the manifest.yml file. Register your app by running forge register.”
 
-The most recent run for draft PR #10 (#44) repeated that result: docs and all app steps through build passed; Forge lint stopped only because the manifest has no registered app ID. Draft PR #11 (ticket #2, stacked on #10) CI run #45 also passed docs, both clean installs, lint, typecheck, all 27 tests and UI build; it stopped at Forge lint for that same registration requirement.
+The most recent run for draft PR #10 (#44) repeated that result: docs and all app steps through build passed; Forge lint stopped only because the manifest has no registered app ID. Draft PR #11 (ticket #2, stacked on #10) CI run #46 also passed docs, both clean installs, lint, typecheck, all 27 tests and UI build; it stopped at Forge lint for that same registration requirement.
 
 ## Latest increment — ticket #2 authorization policy
 Added a pure authorization contract that derives account and tenant from Forge resolver context, validates an active server-loaded grant, checks the loaded record tenant and explicit site grant, then applies separate permissions for employee self-service, manager operations, HR policy/profile changes and redacted audit reads. Employees must match the grant's linked employee ID. Wildcard site grants are rejected. Synthetic tests cover missing/forged context, cross-tenant records, unauthorized sites, self-service boundaries, role privileges and invalid grants.
