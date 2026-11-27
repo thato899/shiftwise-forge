@@ -72,3 +72,143 @@ export function findOvertimeCandidates(
     return { workerId: worker.id, eligible: reasons.length === 0, reasons };
   });
 }
+
+export type OvertimeOfferStatus =
+  | 'draft'
+  | 'published'
+  | 'accepted'
+  | 'declined'
+  | 'expired'
+  | 'cancelled'
+  | 'assigned';
+
+export interface OvertimeOffer {
+  id: string;
+  tenantId: string;
+  siteId: string;
+  postId: string;
+  shiftId: string;
+  employeeId: string;
+  window: TimeWindow;
+  status: OvertimeOfferStatus;
+  revision: number;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+  decisionBy?: string;
+  decisionAt?: string;
+  assignmentId?: string;
+}
+export interface OvertimeAuditEvent {
+  offerId: string;
+  tenantId: string;
+  actorId: string;
+  action: 'published' | 'accepted' | 'declined' | 'expired' | 'cancelled' | 'assigned';
+  at: string;
+  revision: number;
+  reason?: string;
+}
+export interface OvertimeTransition {
+  offer: OvertimeOffer;
+  event: OvertimeAuditEvent;
+}
+
+function requireRevision(offer: OvertimeOffer, expected: number): void {
+  if (offer.revision !== expected) throw new Error('Offer changed; refresh before acting.');
+}
+function requireBeforeExpiry(offer: OvertimeOffer, now: string): void {
+  if (time(now) >= time(offer.expiresAt)) throw new Error('Overtime offer has expired.');
+}
+function transition(
+  offer: OvertimeOffer,
+  actorId: string,
+  now: string,
+  action: OvertimeAuditEvent['action'],
+  reason?: string,
+  assignmentId?: string,
+): OvertimeTransition {
+  const revision = offer.revision + 1;
+  const next: OvertimeOffer = {
+    ...offer,
+    status: action === 'published' ? 'published'
+      : action === 'accepted' ? 'accepted'
+      : action === 'declined' ? 'declined'
+      : action === 'expired' ? 'expired'
+      : action === 'cancelled' ? 'cancelled'
+      : 'assigned',
+    revision,
+    decisionBy: actorId,
+    decisionAt: now,
+    ...(assignmentId ? { assignmentId } : {}),
+  };
+  return { offer: next, event: { offerId: offer.id, tenantId: offer.tenantId, actorId, action, at: now, revision, reason } };
+}
+
+/** Publish an invitation. Publication does not reserve a worker or alter coverage. */
+export function publishOvertimeOffer(
+  offer: OvertimeOffer,
+  actorId: string,
+  now: string,
+  expectedRevision: number,
+): OvertimeTransition {
+  requireRevision(offer, expectedRevision);
+  if (offer.status !== 'draft') throw new Error('Only a draft offer can be published.');
+  if (!actorId.trim()) throw new Error('An authorized manager is required.');
+  if (time(offer.expiresAt) <= time(now)) throw new Error('Offer expiry must be in the future.');
+  return transition(offer, actorId, now, 'published');
+}
+
+/** Employee response is voluntary and never assigns the shift. */
+export function respondToOvertimeOffer(
+  offer: OvertimeOffer,
+  employeeId: string,
+  response: 'accept' | 'decline',
+  now: string,
+  expectedRevision: number,
+): OvertimeTransition {
+  requireRevision(offer, expectedRevision);
+  if (offer.status !== 'published') throw new Error('Only a published offer can receive a response.');
+  if (offer.employeeId !== employeeId) throw new Error('Only the invited employee can respond.');
+  requireBeforeExpiry(offer, now);
+  return transition(offer, employeeId, now, response === 'accept' ? 'accepted' : 'declined');
+}
+
+/** Manager confirmation is a separate, revision-checked act after the employee accepts. */
+export function confirmOvertimeAssignment(
+  offer: OvertimeOffer,
+  managerId: string,
+  assignmentId: string,
+  now: string,
+  expectedRevision: number,
+): OvertimeTransition {
+  requireRevision(offer, expectedRevision);
+  if (offer.status !== 'accepted') throw new Error('Employee acceptance is required before assignment.');
+  if (!managerId.trim()) throw new Error('An authorized manager is required.');
+  if (!assignmentId.trim()) throw new Error('A confirmed assignment id is required.');
+  return transition(offer, managerId, now, 'assigned', undefined, assignmentId);
+}
+
+export function cancelOvertimeOffer(
+  offer: OvertimeOffer,
+  managerId: string,
+  reason: string,
+  now: string,
+  expectedRevision: number,
+): OvertimeTransition {
+  requireRevision(offer, expectedRevision);
+  if (!['draft', 'published', 'accepted'].includes(offer.status)) throw new Error('This offer can no longer be cancelled.');
+  if (!managerId.trim()) throw new Error('An authorized manager is required.');
+  if (!reason.trim()) throw new Error('A cancellation reason is required.');
+  return transition(offer, managerId, now, 'cancelled', reason);
+}
+
+export function expireOvertimeOffer(
+  offer: OvertimeOffer,
+  now: string,
+  expectedRevision: number,
+): OvertimeTransition {
+  requireRevision(offer, expectedRevision);
+  if (offer.status !== 'published') throw new Error('Only a published offer can expire.');
+  if (time(now) < time(offer.expiresAt)) throw new Error('Offer expiry time has not been reached.');
+  return transition(offer, 'system', now, 'expired');
+}
