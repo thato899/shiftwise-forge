@@ -1,3 +1,12 @@
+# Status — 28 November 2026 (SAST)
+
+Phase: domain implementation and build-gate hardening. The repository has a Forge Jira global-page scaffold, synthetic dashboard, coverage, leave and overtime domain helpers, tests and security/product documentation.
+
+## Latest increment — ticket #4 leave preview and decision guards
+Bound leave previews to the exact pending request ID, employee, time window and HR policy revision. The decision helper now requires an `AuthorizedActor` carrying the shift-manager `decide-leave` permission, rejects mismatched or stale previews, and still blocks approval when deterministic coverage is infeasible. Expanded synthetic unit tests cover unauthorized role/capability, wrong employee/request/window, policy revision changes, malformed requests, decision reasons and repeat decisions.
+
+This is domain logic only. No Forge resolver loads the grant or fresh roster/policy yet; no durable audit or atomic write is present. Do not expose or claim an end-to-end leave workflow. CI run #53 on the final leave-slice code passed the docs job, clean installs, lint, typecheck, all unit tests and UI build; Forge lint failed only because manifest.yml still lacks a registered Forge app ID.
+
 # Status — 27 November 2026 (SAST)
 
 Phase: domain implementation and build-gate hardening. The repository has a Forge Jira global-page scaffold, synthetic dashboard, coverage, leave and overtime domain helpers, tests and security/product documentation.
@@ -33,7 +42,7 @@ CI requires both package lockfiles and runs clean installs, lint, typecheck, tes
 - Cross-offer atomic slot claiming and Jira coverage issue creation are outstanding.
 - Clean Jira-site installation, judge link, public demo and Devpost submission remain pending.
 
-Next: continue #2 by implementing server-side grant lookup/bootstrap and applying it in every protected resolver, then build HR configuration. Thato still needs to register the Forge app and add its generated app ID before Forge lint and clean-site installation can pass.
+Next: wire server-side grant lookup and authorization into resolvers, then implement fresh-state leave decisions with audit and atomic revision checks. Thato still needs to register the Forge app and add its generated app ID before Forge lint and clean-site installation can pass.
 
 ## Gates
 | Gate | State |

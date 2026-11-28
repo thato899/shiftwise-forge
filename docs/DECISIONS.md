@@ -22,3 +22,10 @@ Date: 25 November 2026. Skills and current credentials establish competency; HR-
 - Model roles as explicit server-side grants with tenant, account, allowed site IDs, optional employee self-link, active state and revision. Do not use a wildcard site grant.
 - Keep employee self-service, manager decisions, HR policy/profile changes and redacted auditor history as separate permissions.
 - The pure authorization policy is a tested contract only. Do not expose protected flows until a server-side grant repository and resolver enforcement are connected.
+
+
+## 2026-11-28 — Bind leave decisions to authorized previews
+
+- A leave preview carries the request ID, employee ID, time window and HR policy revision it evaluated; decisions reject mismatches and stale revisions.
+- The pure leave decision helper requires an explicit `AuthorizedActor` for the manager's `decide-leave` permission and still refuses approval when deterministic coverage is infeasible.
+- This is a domain guard, not resolver authorization or concurrency control. Resolver integration, fresh server-side reads, durable audit events and atomic revision-checked writes remain mandatory before the workflow is exposed.

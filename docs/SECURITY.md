@@ -22,3 +22,5 @@ This is a development prototype. Do not connect real HR data until an access-con
 Threat model tenant isolation, resolver authorization, concurrency, Jira issue content, retention/deletion, data residency and applicable working-time law. Add a reviewed privacy notice and retention policy. Do not imply legal compliance without qualified review.
 
 The authorization policy helper and synthetic tests exist, but the server-side grant repository and resolver integration do not. Do not expose HR or employee records until both are implemented and directly tested against forged payloads and cross-tenant/site access.
+
+Leave decision domain helpers now require a typed manager actor with `decide-leave`, bind previews to request identity/window and policy revision, and reject infeasible approvals. These checks do not authorize a resolver by themselves: only a server-loaded grant checked against trusted Forge context may construct the authorized actor passed to the domain layer. Fresh roster/policy reload, audit persistence and atomic decision writes remain required before leave workflows are exposed.
