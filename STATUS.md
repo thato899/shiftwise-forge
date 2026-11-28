@@ -1,3 +1,12 @@
+# Status — 28 November 2026 (SAST)
+
+Phase: domain implementation and build-gate hardening. The repository has a Forge Jira global-page scaffold, synthetic dashboard, coverage, leave and overtime domain helpers, tests and security/product documentation.
+
+## Latest increment — ticket #5 overtime eligibility
+Corrected rolling-period hour accounting to count only the portion of worked intervals inside the HR-configured period. Candidates with a confirmed worked interval overlapping the proposed overtime post are excluded, even if a separate busy-window entry is missing. Added synthetic tests for an eligible prior-shift candidate, insufficient rest before/after, rolling-window clipping, exceeded hour limits, overlap, site, skill, credential, grade and missing HR review.
+
+This does not publish invitations, accept overtime, assign workers, re-evaluate the roster or prevent two offers from claiming one slot. Those need authorized resolvers and atomic persistence. GitHub Actions run #52 passed documentation checks, clean root/UI installs, lint, typecheck, 32 tests across six suites and UI build. Forge lint failed only because manifest.yml has no registered app ID.
+
 # Status — 27 November 2026 (SAST)
 
 Phase: domain implementation and build-gate hardening. The repository has a Forge Jira global-page scaffold, synthetic dashboard, coverage, leave and overtime domain helpers, tests and security/product documentation.
@@ -33,7 +42,7 @@ CI requires both package lockfiles and runs clean installs, lint, typecheck, tes
 - Cross-offer atomic slot claiming and Jira coverage issue creation are outstanding.
 - Clean Jira-site installation, judge link, public demo and Devpost submission remain pending.
 
-Next: continue #2 by implementing server-side grant lookup/bootstrap and applying it in every protected resolver, then build HR configuration. Thato still needs to register the Forge app and add its generated app ID before Forge lint and clean-site installation can pass.
+Next: implement server-side grant lookup and resolver authorization, then connect the tested overtime eligibility and leave policy helpers to fresh persisted state and atomic decisions. Thato still needs to register the Forge app and add its generated app ID before Forge lint and clean-site installation can pass.
 
 ## Gates
 | Gate | State |

@@ -22,3 +22,10 @@ Date: 25 November 2026. Skills and current credentials establish competency; HR-
 - Model roles as explicit server-side grants with tenant, account, allowed site IDs, optional employee self-link, active state and revision. Do not use a wildcard site grant.
 - Keep employee self-service, manager decisions, HR policy/profile changes and redacted auditor history as separate permissions.
 - The pure authorization policy is a tested contract only. Do not expose protected flows until a server-side grant repository and resolver enforcement are connected.
+
+
+## 2026-11-28 — Evaluate overtime hours inside the policy window
+
+- Count only the portion of each worked interval that intersects the configured rolling period; do not overcount hours outside the HR policy window.
+- Treat overlap with any confirmed worked interval as an eligibility conflict, even if a separate busy-window record is missing.
+- Missing HR review or unmet eligibility constraints exclude an overtime candidate. This remains eligibility guidance only; invitation, voluntary acceptance and manager assignment remain separate human actions.

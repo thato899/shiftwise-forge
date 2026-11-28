@@ -7,7 +7,7 @@ Entities: Site, PostRequirement, Shift, EmployeeProfile, Credential, Assignment,
 
 Service boundaries: PolicyRepository; EligibilityService; CoverageSolver; LeaveDecisionService; OvertimeService; AuditService; JiraGateway. CoverageSolver evaluates a feasible matching for every required slot. Workers can cover multiple non-overlapping windows, but cannot cover two simultaneous slots. The current bounded search returns an explicit human-review error when it reaches its node limit. It does not silently claim infeasibility when the search is exhausted.
 
-LeaveDecisionService must re-evaluate against current roster and policy revision before commit. OvertimeService creates invitations, records voluntary employee response separately from manager assignment, and checks that another active assignment does not conflict. Persistence must enforce cross-offer claims atomically; a pure domain revision check cannot prevent concurrent writes across separate records.
+LeaveDecisionService must re-evaluate against current roster and policy revision before commit. OvertimeService creates invitations, records voluntary employee response separately from manager assignment, and checks that another active assignment does not conflict. Candidate eligibility requires an HR-reviewed policy and checks qualification, site, availability, rest before/after work, overlapping work, and exact worked hours inside the configured rolling window. Persistence must enforce cross-offer claims atomically; a pure domain revision check cannot prevent concurrent writes across separate records.
 
 JiraGateway will use least privilege and idempotent issue creation for unresolved gaps.
 

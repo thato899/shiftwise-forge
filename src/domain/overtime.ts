@@ -59,6 +59,7 @@ export function findOvertimeCandidates(
     if (!eligibleGrades.includes(worker.grade) || !worker.eligibleGrades.includes(worker.grade)) reasons.push('grade not eligible under HR policy');
     if (worker.busyWindows.some(window => overlap(window, opportunity))) reasons.push('conflicting assignment');
 
+    if (worker.workedWindows.some(window => overlap(window, opportunity))) reasons.push('conflicting worked interval');
     const preceding = worker.workedWindows.filter(window => time(window.end) <= start);
     const following = worker.workedWindows.filter(window => time(window.start) >= end);
     if (preceding.some(window => gapHours(window, opportunity) < policy.minimumRestHours)) reasons.push('minimum rest before overtime would be breached');
@@ -66,7 +67,11 @@ export function findOvertimeCandidates(
     const rollingStart = end - policy.rollingPeriodHours * 3_600_000;
     const alreadyWorked = worker.workedWindows
       .filter(window => time(window.end) > rollingStart && time(window.start) < end)
-      .reduce((sum, window) => sum + durationHours(window), 0);
+      .reduce((sum, window) => {
+        const overlapStart = Math.max(time(window.start), rollingStart);
+        const overlapEnd = Math.min(time(window.end), end);
+        return sum + Math.max(0, overlapEnd - overlapStart) / 3_600_000;
+      }, 0);
     if (alreadyWorked + durationHours(opportunity) > policy.maximumHoursInRollingPeriod) reasons.push('maximum hours in rolling period would be exceeded');
 
     return { workerId: worker.id, eligible: reasons.length === 0, reasons };
