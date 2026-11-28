@@ -19,5 +19,8 @@ Resolver services derive the actor from Forge's trusted `context.accountId` and 
 
 `src/domain/authorization.ts` implements and tests this policy contract. It is not yet connected to a persistent grant repository or the resolver, so it is not production enforcement. Until that service is wired, sensitive workflows must remain unavailable; the current synthetic dashboard contains no employee records.
 
+### Leave decision boundary (tickets #2 and #4)
+`previewLeave` binds its result to the pending request ID, employee, exact time window and HR policy revision. `decideLeave` accepts an `AuthorizedActor` with the explicit `decide-leave` permission, checks that the actor is a shift manager, verifies the preview still matches the request and current policy revision, then refuses approval when any post minimum is unmet. This is a pure domain boundary: the resolver must obtain the actor from trusted Forge context and re-evaluate against freshly loaded roster/policy data before any write. It does not provide persistence, audit storage or protection against concurrent decisions.
+
 ## CI
 Install exact dependencies from both root and UI package lockfiles; run lint, typecheck, unit tests for matching/authorization/concurrency, UI build and Forge lint. CI never deploys to production or exposes Forge credentials to untrusted PRs. Deployment remains a documented manual action.
