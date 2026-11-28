@@ -1,5 +1,5 @@
 import type { AuthorizedActor } from './authorization';
-import { CoverageInput, CoverageResult, evaluateCoverage } from './coverage';
+import { CoverageInput, CoverageResult, evaluateCoverage, TimeWindow } from './coverage';
 
 export type LeaveStatus = 'pending' | 'approved' | 'declined' | 'needs-coverage';
 export interface LeaveRequest {
@@ -10,6 +10,10 @@ export interface LeaveRequest {
   status: LeaveStatus;
   reason?: string;
   policyRevision: number;
+}
+export interface LeaveCoverageInput extends CoverageInput {
+  /** Window the caller loaded the post and roster data for. */
+  evaluatedWindow: TimeWindow;
 }
 export interface LeavePreview {
   requestId: string;
@@ -22,17 +26,22 @@ export interface LeavePreview {
   explanation: string[];
 }
 
-/** Build a preview tied to the exact request and HR policy revision being evaluated. */
+/** Build a preview tied to the exact pending request and policy revision being evaluated. */
 export function previewLeave(
-  input: CoverageInput,
+  input: LeaveCoverageInput,
   request: LeaveRequest,
   policyRevision: number,
 ): LeavePreview {
   if (request.status !== 'pending') throw new Error('Only pending requests can be previewed.');
   const start = Date.parse(request.start);
   const end = Date.parse(request.end);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
-    throw new Error('Leave request must have a valid, increasing time window.');
+  const evaluatedStart = Date.parse(input.evaluatedWindow.start);
+  const evaluatedEnd = Date.parse(input.evaluatedWindow.end);
+  if (![start, end, evaluatedStart, evaluatedEnd].every(Number.isFinite) || start >= end) {
+    throw new Error('Leave request and evaluated coverage window must be valid.');
+  }
+  if (start !== evaluatedStart || end !== evaluatedEnd) {
+    throw new Error('Roster coverage window must exactly match the leave request window.');
   }
   if (!Number.isInteger(policyRevision) || policyRevision < 1) {
     throw new Error('A valid HR policy revision is required for the preview.');
@@ -41,7 +50,8 @@ export function previewLeave(
     throw new Error('Leave requester is not present in the authorized roster.');
   }
   const coverage = evaluateCoverage({
-    ...input,
+    workers: input.workers,
+    posts: input.posts,
     excludedWorkerIds: [...(input.excludedWorkerIds ?? []), request.employeeId],
   });
   return {
