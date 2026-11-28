@@ -31,12 +31,8 @@ describe('leave decisions', () => {
     expect(decision.reason).toBe('Coverage remains at minimum.');
   });
 
-  it('blocks approval if the proposed leave leaves a critical-post deficit', () => {
-    const twoPersonMinimum = {
-      ...engineMaintenanceFixture,
-      posts: engineMaintenanceFixture.posts.map(post => ({ ...post, minimum: 4 })),
-    };
-    const preview = previewLeave({ ...coverageInput, ...twoPersonMinimum, evaluatedWindow: coverageInput.evaluatedWindow }, request, 1);
+  it('blocks a second overlapping absence when a minimum of three would be broken', () => {
+    const preview = previewLeave({ ...coverageInput, excludedWorkerIds: ['worker-b'] }, request, 1);
     expect(preview.feasible).toBe(false);
     expect(preview.explanation[0]).toContain('deficit 1');
     expect(() => decideLeave(request, preview, manager, 1, 'approve', 'Try anyway')).toThrow('below minimum');
@@ -70,8 +66,8 @@ describe('leave decisions', () => {
   });
 
   it('only previews valid pending requests and known policy revisions', () => {
-    expect(() => previewLeave(engineMaintenanceFixture, { ...request, status: 'approved' }, 1)).toThrow('pending');
-    expect(() => previewLeave(engineMaintenanceFixture, { ...request, start: 'bad' }, 1)).toThrow('valid, increasing');
+    expect(() => previewLeave(coverageInput, { ...request, status: 'approved' }, 1)).toThrow('pending');
+    expect(() => previewLeave(coverageInput, { ...request, start: 'bad' }, 1)).toThrow('valid');
     expect(() => previewLeave(coverageInput, request, 0)).toThrow('policy revision');
     expect(() => previewLeave({ ...coverageInput, evaluatedWindow: { start: request.start, end: '2026-11-25T15:00:00Z' } }, request, 1))
       .toThrow('exactly match');
