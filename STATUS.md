@@ -5,7 +5,7 @@ Phase: domain implementation and build-gate hardening. The repository has a Forg
 ## Latest increment — ticket #4 leave preview and decision guards
 Bound leave previews to the exact pending request ID, employee, time window and HR policy revision. The decision helper now requires an `AuthorizedActor` carrying the shift-manager `decide-leave` permission, rejects mismatched or stale previews, and still blocks approval when deterministic coverage is infeasible. Expanded synthetic unit tests cover unauthorized role/capability, wrong employee/request/window, policy revision changes, malformed requests, decision reasons and repeat decisions.
 
-This is domain logic only. No Forge resolver loads the grant or fresh roster/policy yet; no durable audit or atomic write is present. Do not expose or claim an end-to-end leave workflow. CI run #51 passed the docs job, clean installs, lint, typecheck, all unit tests and UI build; Forge lint failed only because manifest.yml still lacks a registered Forge app ID.
+This is domain logic only. No Forge resolver loads the grant or fresh roster/policy yet; no durable audit or atomic write is present. Do not expose or claim an end-to-end leave workflow. CI run #53 on the final leave-slice code passed the docs job, clean installs, lint, typecheck, all unit tests and UI build; Forge lint failed only because manifest.yml still lacks a registered Forge app ID.
 
 # Status — 27 November 2026 (SAST)
 
